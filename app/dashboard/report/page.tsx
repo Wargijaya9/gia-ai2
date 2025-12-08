@@ -194,7 +194,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           to: emailRecipients,
-          subject: title || reportTemplates[templateType].title,
+          subject: title || reportTemplates[templateType].defaultTitle,
           pdfData: pdfDataUrl, // Already base64
           pdfName: `${title || 'Report'}-${Date.now()}.pdf`,
         }),
