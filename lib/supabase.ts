@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with safety check
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+// Helper to check if Supabase is configured
+export const isSupabaseConfigured = () => {
+  return !!(supabaseUrl && supabaseAnonKey && supabase);
+};
 
 // Database Types
 export interface Task {
@@ -44,6 +52,7 @@ export interface ChatSession {
 // Task Operations
 export const taskOperations = {
   async getAll() {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -54,6 +63,7 @@ export const taskOperations = {
   },
 
   async create(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('tasks')
       .insert([task])
@@ -65,6 +75,7 @@ export const taskOperations = {
   },
 
   async update(id: string, updates: Partial<Task>) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('tasks')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -77,6 +88,7 @@ export const taskOperations = {
   },
 
   async delete(id: string) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -89,6 +101,7 @@ export const taskOperations = {
 // Report Operations
 export const reportOperations = {
   async getAll() {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('reports')
       .select('*')
@@ -99,6 +112,7 @@ export const reportOperations = {
   },
 
   async create(report: Omit<Report, 'id' | 'created_at' | 'updated_at'>) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('reports')
       .insert([report])
@@ -110,6 +124,7 @@ export const reportOperations = {
   },
 
   async delete(id: string) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase
       .from('reports')
       .delete()
@@ -122,6 +137,7 @@ export const reportOperations = {
 // Chat Session Operations
 export const chatOperations = {
   async getAll() {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('chat_sessions')
       .select('*')
@@ -132,6 +148,7 @@ export const chatOperations = {
   },
 
   async create(session: Omit<ChatSession, 'id' | 'created_at' | 'updated_at'>) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('chat_sessions')
       .insert([session])
@@ -143,6 +160,7 @@ export const chatOperations = {
   },
 
   async update(id: string, updates: Partial<ChatSession>) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { data, error } = await supabase
       .from('chat_sessions')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -155,6 +173,7 @@ export const chatOperations = {
   },
 
   async delete(id: string) {
+    if (!supabase) throw new Error('Supabase is not configured');
     const { error } = await supabase
       .from('chat_sessions')
       .delete()

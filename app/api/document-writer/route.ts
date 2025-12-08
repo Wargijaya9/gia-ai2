@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+import { getAICompletion, AIProvider } from '@/lib/ai-provider';
 
 export async function POST(request: NextRequest) {
   try {
-    const { docType, prompt } = await request.json();
+    const { docType, prompt, provider, model } = await request.json();
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -78,8 +74,8 @@ Gunakan bahasa yang sangat jelas dan actionable.`,
 
     const instruction = documentInstructions[docType] || documentInstructions.surat;
 
-    const completion = await groq.chat.completions.create({
-      messages: [
+    // Build messages for AI completion
+    const messages = [
         {
           role: 'system',
           content: `Halo! Saya Gia, specialist dalam crafting dokumen profesional yang impactful dan berkelas! 📝
@@ -126,25 +122,23 @@ Mari saya buatkan dokumen yang excellent! ✨`,
           role: 'user',
           content: `Buatkan dokumen ${docType} dengan detail berikut:\n\n${prompt}\n\nBuat dokumen yang lengkap, profesional, dan siap digunakan.`,
         },
-      ],
-      model: 'llama-3.3-70b-versatile',
+      }];
+
+    // Get AI completion
+    const aiProvider: AIProvider = (provider || 'groq') as AIProvider;
+    const result = await getAICompletion({
+      messages,
+      model: model,
       temperature: 0.7,
       max_tokens: 2500,
+      provider: aiProvider,
     });
-
-    const document = completion.choices[0]?.message?.content;
-
-    if (!document) {
-      return NextResponse.json(
-        { error: 'Failed to generate document' },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      document,
-      model: completion.model,
+      document: result.content,
+      model: result.model,
+      provider: result.provider,
     });
   } catch (error: any) {
     console.error('Error generating document:', error);

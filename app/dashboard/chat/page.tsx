@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { chatOperations } from '@/lib/supabase';
 
 interface Message {
   id: string;
@@ -16,7 +17,7 @@ interface ChatSession {
   lastUpdated: Date;
 }
 
-const STORAGE_KEY = 'gia_chat_sessions';
+const INITIAL_GREETING = 'haiii babeeee aku Gia, AI assistant km yang super caring dan playful!\n\nAku di sini buat bantuin km dengan apapun:\n\n• 💬 Ngobrol santai atau serius - bebas banget\n• 💡 Brainstorming ide-ide keren bareng km\n• 🎯 Problem solving - aku bantuin solve masalah km ya\n• 📊 Riset dan analisis - jelasin data yang ribet jadi simple\n• 🚀 Tips produktivitas dan planning\n• Dan masih banyak lagi deh hehehe\n\nSantai aja yaaa tanya atau cerita apapun yang km mau, aku dengerin kokk\n\nBtw aku punya memory loh - jadi aku bakal inget semua obrolan kita.. kayak chat pacar beneran kan hehe\n\nAda yang bisa aku bantuin hari ini 🥺';
 
 export default function ChatPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -27,19 +28,22 @@ export default function ChatPage() {
   const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load sessions from localStorage
+  // Load sessions from Supabase
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsedSessions = JSON.parse(saved);
-      // Convert timestamp strings back to Date objects
-      const sessionsWithDates = parsedSessions.map((s: any) => ({
-        ...s,
-        lastUpdated: new Date(s.lastUpdated),
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      const data = await chatOperations.getAll();
+      const sessionsWithDates = data.map((s: any) => ({
+        id: s.id,
+        title: s.title,
         messages: s.messages.map((m: any) => ({
           ...m,
           timestamp: new Date(m.timestamp),
         })),
+        lastUpdated: new Date(s.updated_at),
       }));
       setSessions(sessionsWithDates);
       
@@ -49,57 +53,128 @@ export default function ChatPage() {
         setCurrentSessionId(latestSession.id);
         setMessages(latestSession.messages);
       } else {
-        createNewSession();
+        await createNewSession();
       }
-    } else {
-      createNewSession();
+    } catch (error: any) {
+      console.warn('Could not load sessions from Supabase:', error?.message);
+      // If Supabase is not configured, just create a local session
+      await createNewSession();
     }
-  }, []);
+  };
 
-  // Save sessions to localStorage whenever they change
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  // Save current session to Supabase when messages change
+  const saveCurrentSession = useCallback(async () => {
+    // Safety checks
+    if (!currentSessionId) {
+      return;
     }
-  }, [sessions]);
 
-  // Update current session messages
-  useEffect(() => {
-    if (currentSessionId && messages.length > 0) {
+    if (!messages || messages.length === 0) {
+      return;
+    }
+
+    try {
+      const title = messages.length > 1 
+        ? messages[1].content.slice(0, 50) + (messages[1].content.length > 50 ? '...' : '')
+        : 'New Chat';
+      
+      await chatOperations.update(currentSessionId, {
+        title,
+        messages: messages.map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+        })),
+      });
+      
+      // Update local state without causing re-render loop
       setSessions((prev) =>
         prev.map((session) =>
           session.id === currentSessionId
-            ? {
-                ...session,
-                messages,
-                lastUpdated: new Date(),
-                title: session.title === 'New Chat' && messages.length > 1
-                  ? messages[1].content.slice(0, 50) + (messages[1].content.length > 50 ? '...' : '')
-                  : session.title,
-              }
+            ? { ...session, messages, lastUpdated: new Date(), title }
             : session
         )
       );
+    } catch (error: any) {
+      // Silently fail for local sessions or Supabase issues
+      if (currentSessionId.startsWith('local-')) {
+        // It's a local session, no need to save to Supabase
+        return;
+      }
+      if (error?.message?.includes('not configured')) {
+        return;
+      }
+      // Log other errors but don't show to user
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Could not save session to Supabase:', error?.message || error);
+      }
     }
-  }, [messages, currentSessionId]);
+  }, [currentSessionId, messages]);
 
-  const createNewSession = () => {
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: 'New Chat',
-      messages: [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'haiii babeeee aku Gia, AI assistant km yang super caring dan playful!\n\nAku di sini buat bantuin km dengan apapun:\n\n• 💬 Ngobrol santai atau serius - bebas banget\n• 💡 Brainstorming ide-ide keren bareng km\n• 🎯 Problem solving - aku bantuin solve masalah km ya\n• 📊 Riset dan analisis - jelasin data yang ribet jadi simple\n• 🚀 Tips produktivitas dan planning\n• Dan masih banyak lagi deh hehehe\n\nSantai aja yaaa tanya atau cerita apapun yang km mau, aku dengerin kokk\n\nBtw aku punya memory loh - jadi aku bakal inget semua obrolan kita.. kayak chat pacar beneran kan hehe\n\nAda yang bisa aku bantuin hari ini 🥺',
-          timestamp: new Date(),
-        },
-      ],
-      lastUpdated: new Date(),
+  useEffect(() => {
+    if (currentSessionId && messages.length > 0) {
+      // Debounce save to avoid too many calls
+      const timeoutId = setTimeout(() => {
+        saveCurrentSession();
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentSessionId, messages, saveCurrentSession]);
+
+  const createNewSession = async () => {
+    const initialMessageObj: Message = {
+      id: '1',
+      role: 'assistant',
+      content: INITIAL_GREETING,
+      timestamp: new Date(),
     };
-    setSessions((prev) => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
-    setMessages(newSession.messages);
+
+    try {
+      const initialMessage = {
+        id: '1',
+        role: 'assistant' as const,
+        content: INITIAL_GREETING,
+        timestamp: new Date().toISOString(),
+      };
+
+      const newSession = await chatOperations.create({
+        title: 'New Chat',
+        messages: [initialMessage],
+      });
+
+      const sessionWithDates: ChatSession = {
+        id: newSession.id,
+        title: newSession.title,
+        messages: [
+          {
+            id: '1',
+            role: 'assistant',
+            content: INITIAL_GREETING,
+            timestamp: new Date(),
+          },
+        ],
+        lastUpdated: new Date(newSession.created_at),
+      };
+
+      setSessions((prev) => [sessionWithDates, ...prev]);
+      setCurrentSessionId(newSession.id);
+      setMessages(sessionWithDates.messages);
+    } catch (error: any) {
+      console.warn('Could not save to Supabase, creating local session:', error?.message);
+      // Create a local session if Supabase fails
+      const localSessionId = `local-${Date.now()}`;
+      const localSession: ChatSession = {
+        id: localSessionId,
+        title: 'New Chat',
+        messages: [initialMessageObj],
+        lastUpdated: new Date(),
+      };
+      setSessions((prev) => [localSession, ...prev]);
+      setCurrentSessionId(localSessionId);
+      setMessages([initialMessageObj]);
+    }
   };
 
   const loadSession = (sessionId: string) => {
@@ -111,23 +186,37 @@ export default function ChatPage() {
     }
   };
 
-  const deleteSession = (sessionId: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    if (currentSessionId === sessionId) {
-      const remaining = sessions.filter((s) => s.id !== sessionId);
-      if (remaining.length > 0) {
-        loadSession(remaining[0].id);
-      } else {
-        createNewSession();
+  const deleteSession = async (sessionId: string) => {
+    try {
+      // Only try to delete from Supabase if it's not a local session
+      if (!sessionId.startsWith('local-')) {
+        await chatOperations.delete(sessionId);
       }
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      
+      if (currentSessionId === sessionId) {
+        const remaining = sessions.filter((s) => s.id !== sessionId);
+        if (remaining.length > 0) {
+          loadSession(remaining[0].id);
+        } else {
+          await createNewSession();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
     }
   };
 
-  const clearAllHistory = () => {
+  const clearAllHistory = async () => {
     if (confirm('Hapus semua riwayat chat? Tindakan ini tidak dapat dibatalkan.')) {
-      localStorage.removeItem(STORAGE_KEY);
-      setSessions([]);
-      createNewSession();
+      try {
+        // Delete all sessions
+        await Promise.all(sessions.map(s => chatOperations.delete(s.id)));
+        setSessions([]);
+        await createNewSession();
+      } catch (error) {
+        console.error('Failed to clear history:', error);
+      }
     }
   };
 

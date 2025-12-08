@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
+import { getAICompletion, AIProvider } from '@/lib/ai-provider';
 import { getTemplateInstructions, type TemplateType } from '@/lib/report-templates';
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
 
 export async function POST(request: NextRequest) {
   try {
-    const { updates, workCategory, templateType, images } = await request.json();
+    const { updates, workCategory, templateType, images, provider, model } = await request.json();
 
     if (!updates || typeof updates !== 'string') {
       return NextResponse.json(
@@ -55,9 +51,9 @@ export async function POST(request: NextRequest) {
     const categoryInstruction = categoryInstructions[workCategory] || categoryInstructions.development;
     const hasImages = images && images.length > 0;
 
-    // Generate detailed report using Groq
-    const completion = await groq.chat.completions.create({
-      messages: [
+    // Build messages for AI completion
+    const aiProvider: AIProvider = (provider || 'groq') as AIProvider;
+    const messages = [
         {
           role: 'system',
           content: `Halo! Saya Gia, AI specialist dalam menyusun laporan profesional yang comprehensive dan insightful! ✨
@@ -306,26 +302,22 @@ ${hasImages ? `DOKUMENTASI: ${images.length} file visual dilampirkan` : ''}
 
 Harapan: Laporan yang tidak hanya mendeskripsikan apa yang dikerjakan, tetapi juga menganalisis HOW dan WHY, memberikan context, metrics, dan strategic insights yang valuable untuk stakeholder.`,
         },
-      ],
-      model: 'llama-3.3-70b-versatile',
+      }];
+
+    // Get AI completion
+    const result = await getAICompletion({
+      messages,
+      model: model,
       temperature: 0.8,
       max_tokens: 4000,
+      provider: aiProvider,
     });
-
-    const reportContent = completion.choices[0]?.message?.content;
-
-    if (!reportContent) {
-      return NextResponse.json(
-        { error: 'Failed to generate report' },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      report: reportContent,
-      model: completion.model,
-      usage: completion.usage,
+      report: result.content,
+      model: result.model,
+      provider: result.provider,
       images: images || [],
     });
   } catch (error: any) {

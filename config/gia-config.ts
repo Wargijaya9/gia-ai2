@@ -93,6 +93,15 @@ export const GIA_CONFIG = {
   models: {
     primary: 'llama-3.3-70b-versatile',
     provider: 'Groq AI',
+    available: [
+      {
+        id: 'groq-llama',
+        name: 'Llama 3.3 70B',
+        provider: 'Groq AI',
+        model: 'llama-3.3-70b-versatile',
+        description: 'Fast and powerful model from Meta via Groq',
+      },
+    ],
   },
 };
 

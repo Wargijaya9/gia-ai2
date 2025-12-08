@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+import { getAICompletion, AIProvider } from '@/lib/ai-provider';
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, userMessage } = await request.json();
+    const { messages, userMessage, provider, model } = await request.json();
 
     if (!userMessage || typeof userMessage !== 'string') {
       return NextResponse.json(
@@ -130,26 +126,21 @@ Tone: Sweet, playful, caring, expressive - exactly like Sergia texting style! ðŸ
       },
     ];
 
-    const completion = await groq.chat.completions.create({
-      messages: conversationMessages as any,
-      model: 'llama-3.3-70b-versatile',
+    // Get AI completion using the specified provider
+    const aiProvider: AIProvider = (provider || 'groq') as AIProvider;
+    const result = await getAICompletion({
+      messages: conversationMessages,
+      model: model,
       temperature: 0.8,
       max_tokens: 2048,
+      provider: aiProvider,
     });
-
-    const response = completion.choices[0]?.message?.content;
-
-    if (!response) {
-      return NextResponse.json(
-        { error: 'Failed to generate response' },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
-      response,
-      model: completion.model,
+      response: result.content,
+      model: result.model,
+      provider: result.provider,
     });
   } catch (error: any) {
     console.error('Error in chat:', error);
