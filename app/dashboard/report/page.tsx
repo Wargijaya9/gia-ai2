@@ -195,7 +195,7 @@ export default function Home() {
         body: JSON.stringify({
           to: emailRecipients,
           subject: title || reportTemplates[templateType].defaultTitle,
-          pdfData: pdfDataUrl, // Already base64
+          pdfData: pdfDataUrl,
           pdfName: `${title || 'Report'}-${Date.now()}.pdf`,
         }),
       });
@@ -577,8 +577,8 @@ export default function Home() {
                         <p className="font-medium text-gray-700 mb-1">Work Balance</p>
                         <p className="text-sm text-gray-600">
                           {Object.entries(chartData.metrics.categories)
-                            .filter(([_, value]) => value > 0)
-                            .sort((a, b) => b[1] - a[1])
+                            .filter(([_, value]) => (value as number) > 0)
+                            .sort((a, b) => (b[1] as number) - (a[1] as number))
                             .slice(0, 2)
                             .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
                             .join(' & ')}{' '}
