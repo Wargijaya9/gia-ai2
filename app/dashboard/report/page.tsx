@@ -297,7 +297,7 @@ export default function Home() {
                     setTemplateType(newTemplate);
                     // Auto-populate title based on template
                     if (!title) {
-                      setTitle(reportTemplates[newTemplate].title);
+                      setTitle(reportTemplates[newTemplate].defaultTitle);
                     }
                   }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
@@ -632,7 +632,7 @@ export default function Home() {
               </label>
               <input
                 type="text"
-                value={title || reportTemplates[templateType].title}
+                value={title || reportTemplates[templateType].defaultTitle}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               />
