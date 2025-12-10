@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@sparticuz/chromium": "^143.0.0",
+    "@sparticuz/chromium": "^126.0.0",
     "@supabase/supabase-js": "^2.86.2",
     "chart.js": "^4.5.1",
     "groq-sdk": "^0.37.0",
