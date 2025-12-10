@@ -75,7 +75,7 @@ Gunakan bahasa yang sangat jelas dan actionable.`,
     const instruction = documentInstructions[docType] || documentInstructions.surat;
 
     // Build messages for AI completion
-    const messages = [
+    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
         {
           role: 'system',
           content: `Halo! Saya Gia, specialist dalam crafting dokumen profesional yang impactful dan berkelas! 📝
@@ -122,7 +122,7 @@ Mari saya buatkan dokumen yang excellent! ✨`,
           role: 'user',
           content: `Buatkan dokumen ${docType} dengan detail berikut:\n\n${prompt}\n\nBuat dokumen yang lengkap, profesional, dan siap digunakan.`,
         },
-      }];
+      ];
 
     // Get AI completion
     const aiProvider: AIProvider = (provider || 'groq') as AIProvider;

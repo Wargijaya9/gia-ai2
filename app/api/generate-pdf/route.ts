@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { chartToSVG } from '@/lib/chart-generator';
 
 export async function POST(request: NextRequest) {
@@ -426,10 +427,16 @@ export async function POST(request: NextRequest) {
 </html>
     `;
 
-    // Launch Puppeteer
+    // Launch Puppeteer with chromium for serverless
+    const isDev = process.env.NODE_ENV === 'development';
+    
     browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: isDev ? ['--no-sandbox'] : chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isDev 
+        ? process.env.PUPPETEER_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        : await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
