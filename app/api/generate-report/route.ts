@@ -301,8 +301,8 @@ KATEGORI: ${workCategory}
 ${hasImages ? `DOKUMENTASI: ${images.length} file visual dilampirkan` : ''}
 
 Harapan: Laporan yang tidak hanya mendeskripsikan apa yang dikerjakan, tetapi juga menganalisis HOW dan WHY, memberikan context, metrics, dan strategic insights yang valuable untuk stakeholder.`,
-        },
-      }];
+        }
+      ];
 
     // Get AI completion
     const result = await getAICompletion({
